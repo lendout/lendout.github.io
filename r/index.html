@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+<meta name="color-scheme" content="light dark">
+<title>Odpověď na stvrzenku</title>
+<style>
+  :root { --paper:#f3f3f7; --card:#ffffff; --ink:#1a1a24; --ink2:#55566a;
+          --rule:#dfdfe8; --accent:#4b47a8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#131319; --card:#1b1b24; --ink:#ececf2; --ink2:#a2a3b6;
+            --rule:#2c2c39; --accent:#a29cf2; }
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--paper); color:var(--ink);
+         font:17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         display:flex; justify-content:center; padding:32px 16px; }
+  main { width:100%; max-width:26rem; }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:12px;
+          padding:20px; margin-bottom:14px; }
+  h1 { font-size:1.05rem; margin-bottom:10px; }
+  .code { font:700 1.5rem ui-monospace, "SF Mono", Menlo, monospace;
+          letter-spacing:0.08em; color:var(--accent); text-align:center; margin:12px 0; }
+  p { color:var(--ink2); font-size:0.95rem; margin-top:8px; }
+  a.btn { display:block; text-align:center; background:var(--accent); color:var(--card);
+          text-decoration:none; font-weight:600; padding:14px; border-radius:10px; margin-top:14px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1 id="title">Odpověď na stvrzenku</h1>
+    <div class="code" id="code">—</div>
+    <p id="explain">Tahle stránka je jen pojistka. Když má půjčitel aplikaci, odkaz se otevře rovnou v ní a odpověď se odškrtne sama.</p>
+    <a class="btn" id="open" hidden>Otevřít v aplikaci</a>
+    <p id="nofrag" hidden>V odkazu chybí kód. Otevři ho prosím znovu ze zprávy.</p>
+  </div>
+  <div class="card">
+    <p>Nemáš aplikaci? Nevadí — samotná zpráva s kódem je to, na čem záleží. Nech ji ve vlákně a je hotovo.</p>
+  </div>
+</main>
+<script>
+"use strict";
+(function () {
+  const fragment = location.hash.slice(1);
+  const m = /^([0-9A-Za-z-]{8,9})\.(ack|nack)(?:\.(\d+))?$/.exec(fragment);
+  if (!m) {
+    document.getElementById("nofrag").hidden = false;
+    document.getElementById("code").textContent = "?";
+    return;
+  }
+  const raw = m[1].toUpperCase().replace(/-/g, "");
+  const dashed = raw.slice(0, 4) + "-" + raw.slice(4);
+  document.getElementById("code").textContent = dashed;
+  document.getElementById("title").textContent =
+    m[2] === "ack" ? "Potvrzení převzetí" : "Nesouhlas se stvrzenkou";
+  const open = document.getElementById("open");
+  open.href = "loantracking://reply#" + fragment;
+  open.hidden = false;
+})();
+</script>
+</body>
+</html>

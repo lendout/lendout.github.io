@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["8ST39LU4PG.cz.whambam.LoanTracking"],
+        "components": [
+          { "/": "/r/*" }
+        ]
+      }
+    ]
+  }
+}

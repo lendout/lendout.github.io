@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- No network, provably: every fetch-like directive falls back to 'none'.
+     Only inline script/style (this file) may run. Links (sms:, wa.me, mailto:)
+     are navigation, not requests, and stay in the user's hands. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+<meta name="color-scheme" content="light dark">
+<title>Stvrzenka</title>
+<style>
+  :root {
+    --paper: #f3f3f7; --card: #ffffff; --ink: #1a1a24; --ink2: #55566a;
+    --rule: #dfdfe8; --accent: #4b47a8; --ok: #1f6f5c; --warn: #8f5510;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131319; --card: #1b1b24; --ink: #ececf2; --ink2: #a2a3b6;
+      --rule: #2c2c39; --accent: #a29cf2; --ok: #62c2a5; --warn: #d9a15c;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 24px 16px 48px;
+  }
+  main { width: 100%; max-width: 26rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  h1 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.08em;
+       color: var(--ink2); font-weight: 600; margin-bottom: 14px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+  dt { color: var(--ink2); white-space: nowrap; }
+  dd { text-align: right; font-weight: 500; overflow-wrap: anywhere; }
+  .items { border-top: 1px dashed var(--rule); border-bottom: 1px dashed var(--rule);
+           margin: 12px 0; padding: 10px 0; }
+  .item { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+  .item small { display: block; color: var(--ink2); font-weight: 400; }
+  .qty { color: var(--ink2); white-space: nowrap; }
+  .note { color: var(--ink2); font-style: italic; margin-top: 10px; }
+  .code {
+    text-align: center; margin: 18px 0 6px;
+    font: 700 1.7rem/1.2 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.08em; color: var(--accent);
+  }
+  .code small { display: block; font: 400 0.68rem/1.6 -apple-system, sans-serif;
+                letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink2); }
+  button {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    font: 600 1.05rem -apple-system, sans-serif; cursor: pointer; margin-top: 10px;
+  }
+  .primary { background: var(--accent); color: var(--card); }
+  .quiet { background: none; color: var(--ink2); border: 1px solid var(--rule);
+           font-weight: 500; font-size: 0.95rem; }
+  .panel h2 { font-size: 0.95rem; margin-bottom: 8px; }
+  .msg {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 12px; font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere;
+    margin-bottom: 6px;
+  }
+  .hint { font-size: 0.85rem; color: var(--ink2); margin-top: 10px; }
+  .footer { font-size: 0.8rem; color: var(--ink2); text-align: center; padding: 0 8px; }
+  .error { color: var(--warn); }
+  .okflash { color: var(--ok); font-weight: 600; text-align: center; margin-top: 8px; }
+  a.aslink { color: var(--accent); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card" id="loading">…</div>
+
+  <div class="card error" id="error" hidden></div>
+
+  <article id="receipt" hidden>
+    <div class="card">
+      <h1 id="t-title"></h1>
+      <dl>
+        <dt id="t-lender"></dt><dd id="v-lender"></dd>
+        <dt id="t-borrower"></dt><dd id="v-borrower"></dd>
+      </dl>
+      <div class="items" id="v-items"></div>
+      <dl>
+        <dt id="t-lent"></dt><dd id="v-lent"></dd>
+        <dt id="t-due" hidden></dt><dd id="v-due" hidden></dd>
+      </dl>
+      <p class="note" id="v-note" hidden></p>
+      <p class="code"><span id="v-code"></span><small id="t-code"></small></p>
+    </div>
+
+    <div class="card" id="actions">
+      <button class="primary" id="btn-ack"></button>
+      <button class="quiet" id="btn-nack"></button>
+    </div>
+
+    <div class="card panel" id="panel" hidden>
+      <h2 id="t-panel"></h2>
+      <div class="msg" id="v-msg"></div>
+      <div id="channels"></div>
+      <button class="quiet" id="btn-copy"></button>
+      <p class="okflash" id="copied" hidden></p>
+      <p class="hint" id="t-hint"></p>
+    </div>
+  </article>
+
+  <p class="footer" id="t-footer"></p>
+</main>
+
+<script>
+"use strict";
+(async function () {
+  const CS = {
+    title: "Stvrzenka o převzetí",
+    lender: "Půjčil", borrower: "Převzal", lent: "Půjčeno", due: "Vrátit do",
+    code: "Kód stvrzenky",
+    ack: "Potvrdit převzetí", nack: "Tohle nesedí",
+    panelAck: "Odešli potvrzení jako zprávu:",
+    panelNack: "Odešli nesouhlas jako zprávu:",
+    msgAck: "Potvrzuji převzetí", msgNack: "Tohle nesedí",
+    sms: "Poslat SMS / iMessage", whatsapp: "Poslat přes WhatsApp", mail: "Poslat e-mailem",
+    copy: "Zkopírovat odpověď", copied: "Zkopírováno — vlož ji do vlákna, kde ti přišel odkaz.",
+    hint: "Nejlepší je odpovědět přímo ve vlákně, kde ti odkaz přišel — zpráva pak zůstane u vás obou.",
+    footer: "Tato stránka nic neodesílá. Obsah jede přímo v odkazu a zůstává mezi vámi.",
+    errBadLink: "Odkaz je neúplný nebo poškozený. Otevři ho prosím znovu ze zprávy.",
+    errVersion: "Tahle stvrzenka je z novější verze. Zobrazit jde jen její kód:",
+    errBrowser: "Tenhle prohlížeč je moc starý na rozbalení stvrzenky. Zkus jiný, nebo odpověz rovnou ve vlákně.",
+    pcs: "ks"
+  };
+  const EN = {
+    title: "Handover receipt",
+    lender: "Lent by", borrower: "Received by", lent: "Lent", due: "Return by",
+    code: "Receipt code",
+    ack: "Confirm pickup", nack: "Something's off",
+    panelAck: "Send the confirmation as a message:",
+    panelNack: "Send your objection as a message:",
+    msgAck: "Confirming pickup", msgNack: "Something's off",
+    sms: "Send SMS / iMessage", whatsapp: "Send via WhatsApp", mail: "Send by e-mail",
+    copy: "Copy the reply", copied: "Copied — paste it into the thread where the link arrived.",
+    hint: "Best is to reply in the thread where this link arrived — the message stays with both of you.",
+    footer: "This page sends nothing anywhere. The content travels inside the link and stays between you.",
+    errBadLink: "The link is incomplete or damaged. Please reopen it from the message.",
+    errVersion: "This receipt is from a newer version. Only its code can be shown:",
+    errBrowser: "This browser is too old to unpack the receipt. Try another one, or just reply in the thread.",
+    pcs: "pcs"
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const TOP_KEYS = ["b","c","d","g","i","l","m","u","v"];
+  const ITEM_KEYS = ["n","q","t"];
+
+  function b64urlDecode(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function inflateRaw(bytes) {
+    const stream = new Blob([bytes]).stream()
+      .pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function receiptCode(bytes) {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    let v = 0n;
+    for (let i = 0; i < 5; i++) v = (v << 8n) | BigInt(digest[i]);
+    let s = "";
+    for (let shift = 35n; shift >= 0n; shift -= 5n)
+      s += ALPHABET[Number((v >> shift) & 31n)];
+    return s.slice(0, 4) + "-" + s.slice(4);
+  }
+
+  function displayDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return iso;
+    return `${+m[3]}. ${+m[2]}. ${+m[1]}`;
+  }
+
+  function fail(msg) {
+    $("loading").hidden = true;
+    $("error").textContent = msg;
+    $("error").hidden = false;
+  }
+
+  const fragment = location.hash.slice(1);
+  const dot = fragment.indexOf(".");
+  if (dot < 1) { fail(CS.errBadLink + " / " + EN.errBadLink); return; }
+  const encVersion = fragment.slice(0, dot);
+
+  let canonical;
+  try {
+    const body = b64urlDecode(fragment.slice(dot + 1));
+    if (encVersion === "0") {
+      canonical = body;
+    } else if (encVersion === "1") {
+      if (!("DecompressionStream" in window)) {
+        fail(CS.errBrowser + " / " + EN.errBrowser); return;
+      }
+      canonical = await inflateRaw(body);
+    } else {
+      fail(CS.errBadLink + " / " + EN.errBadLink); return;
+    }
+  } catch {
+    fail(CS.errBadLink + " / " + EN.errBadLink); return;
+  }
+
+  // The code commits to the exact bytes in the link — hash them as-is,
+  // never a re-serialization.
+  const code = await receiptCode(canonical);
+
+  let payload;
+  try {
+    payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(canonical));
+  } catch {
+    fail(CS.errBadLink + " / " + EN.errBadLink); return;
+  }
+
+  const T = payload.g === "en" ? EN : CS;
+  document.documentElement.lang = payload.g === "en" ? "en" : "cs";
+
+  // Invariant: this page renders EVERY field the code hashes. A payload with
+  // keys we don't know would render incompletely — show only the code instead.
+  const unknownTop = Object.keys(payload).some((k) => !TOP_KEYS.includes(k));
+  const unknownItem = Array.isArray(payload.i) &&
+    payload.i.some((it) => Object.keys(it).some((k) => !ITEM_KEYS.includes(k)));
+  if (payload.v !== 1 || unknownTop || unknownItem ||
+      typeof payload.b !== "string" || typeof payload.l !== "string" ||
+      typeof payload.d !== "string" || !Array.isArray(payload.i)) {
+    fail(`${T.errVersion} ${code}`);
+    return;
+  }
+
+  // Render (textContent only — payload strings never touch innerHTML).
+  $("t-title").textContent = T.title;
+  $("t-lender").textContent = T.lender;
+  $("t-borrower").textContent = T.borrower;
+  $("t-lent").textContent = T.lent;
+  $("t-code").textContent = T.code;
+  $("v-lender").textContent = payload.l;
+  $("v-borrower").textContent = payload.b;
+  $("v-lent").textContent = displayDate(payload.d);
+  $("v-code").textContent = code;
+
+  for (const item of payload.i) {
+    const row = document.createElement("div");
+    row.className = "item";
+    const name = document.createElement("span");
+    name.textContent = item.t;
+    if (item.n) {
+      const idLine = document.createElement("small");
+      idLine.textContent = item.n;
+      name.appendChild(idLine);
+    }
+    const qty = document.createElement("span");
+    qty.className = "qty";
+    qty.textContent = `${item.q} ${T.pcs}`;
+    row.append(name, qty);
+    $("v-items").appendChild(row);
+  }
+  if (payload.u) {
+    $("t-due").textContent = T.due;
+    $("v-due").textContent = displayDate(payload.u);
+    $("t-due").hidden = $("v-due").hidden = false;
+  }
+  if (payload.m) {
+    $("v-note").textContent = payload.m;
+    $("v-note").hidden = false;
+  }
+
+  $("btn-ack").textContent = T.ack;
+  $("btn-nack").textContent = T.nack;
+  $("t-hint").textContent = T.hint;
+  $("btn-copy").textContent = T.copy;
+  $("t-footer").textContent = T.footer;
+
+  $("loading").hidden = true;
+  $("receipt").hidden = false;
+
+  function replyMessage(action) {
+    const ts = Math.floor(Date.now() / 1000);
+    const replyURL = new URL("../r/", location.href);
+    replyURL.hash = `${code.replace("-", "")}.${action}.${ts}`;
+    const label = action === "ack" ? T.msgAck : T.msgNack;
+    return `${label} (${code})\n${replyURL.href}`;
+  }
+
+  function showPanel(action) {
+    const msg = replyMessage(action);
+    $("t-panel").textContent = action === "ack" ? T.panelAck : T.panelNack;
+    $("v-msg").textContent = msg;
+    $("copied").hidden = true;
+
+    const channels = $("channels");
+    channels.textContent = "";
+    const c = typeof payload.c === "string" ? payload.c.trim() : "";
+    const encoded = encodeURIComponent(msg);
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+    function channelButton(label, href) {
+      const a = document.createElement("a");
+      a.href = href;
+      const b = document.createElement("button");
+      b.className = "primary";
+      b.textContent = label;
+      a.appendChild(b);
+      channels.appendChild(a);
+    }
+
+    if (/^[+0-9][0-9 ]{7,}$/.test(c)) {
+      const digits = c.replace(/[^0-9+]/g, "");
+      channelButton(T.sms, isIOS ? `sms:${digits}&body=${encoded}` : `sms:${digits}?body=${encoded}`);
+      channelButton(T.whatsapp, `https://wa.me/${digits.replace("+", "")}?text=${encoded}`);
+    } else if (c.includes("@")) {
+      channelButton(T.mail, `mailto:${c}?body=${encoded}`);
+    }
+
+    $("btn-copy").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(msg);
+        $("copied").textContent = T.copied;
+        $("copied").hidden = false;
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents($("v-msg"));
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    };
+
+    $("panel").hidden = false;
+    $("panel").scrollIntoView({ behavior: "smooth" });
+  }
+
+  $("btn-ack").onclick = () => showPanel("ack");
+  $("btn-nack").onclick = () => showPanel("nack");
+})();
+</script>
+</body>
+</html>
