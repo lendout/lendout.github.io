@@ -33,6 +33,7 @@
   }
   h1 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.08em;
        color: var(--ink2); font-weight: 600; margin-bottom: 14px; }
+  .addendum { margin: -8px 0 14px; color: var(--ink2); font-size: 0.9rem; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
   dt { color: var(--ink2); white-space: nowrap; }
   dd { text-align: right; font-weight: 500; overflow-wrap: anywhere; }
@@ -79,6 +80,7 @@
   <article id="receipt" hidden>
     <div class="card">
       <h1 id="t-title"></h1>
+      <p class="addendum" id="v-addendum" hidden></p>
       <dl>
         <dt id="t-lender"></dt><dd id="v-lender"></dd>
         <dt id="t-borrower"></dt><dd id="v-borrower"></dd>
@@ -128,6 +130,7 @@
     errBadLink: "Odkaz je neúplný nebo poškozený. Otevři ho prosím znovu ze zprávy.",
     errVersion: "Tahle stvrzenka je z novější verze. Zobrazit jde jen její kód:",
     errBrowser: "Tenhle prohlížeč je moc starý na rozbalení stvrzenky. Zkus jiný, nebo odpověz rovnou ve vlákně.",
+    addendum: "Dodatek ke stvrzence",
     pcs: "ks"
   };
   const EN = {
@@ -145,6 +148,7 @@
     errBadLink: "The link is incomplete or damaged. Please reopen it from the message.",
     errVersion: "This receipt is from a newer version. Only its code can be shown:",
     errBrowser: "This browser is too old to unpack the receipt. Try another one, or just reply in the thread.",
+    addendum: "Addendum to receipt",
     pcs: "pcs"
   };
   const DE = {
@@ -162,6 +166,7 @@
     errBadLink: "Der Link ist unvollständig oder beschädigt. Bitte öffne ihn erneut aus der Nachricht.",
     errVersion: "Dieser Beleg stammt aus einer neueren Version. Angezeigt werden kann nur sein Code:",
     errBrowser: "Dieser Browser ist zu alt, um den Beleg zu entpacken. Versuch einen anderen oder antworte direkt im Chat.",
+    addendum: "Nachtrag zum Beleg",
     pcs: "Stk."
   };
   const FR = {
@@ -179,6 +184,7 @@
     errBadLink: "Le lien est incomplet ou endommagé. Rouvre-le depuis le message.",
     errVersion: "Ce reçu vient d'une version plus récente. Seul son code peut être affiché :",
     errBrowser: "Ce navigateur est trop ancien pour ouvrir le reçu. Essaie-en un autre, ou réponds directement dans la conversation.",
+    addendum: "Complément du reçu",
     pcs: "pc."
   };
   // Must match ReceiptMessage.supportedLanguages in the app.
@@ -190,7 +196,7 @@
 
   const $ = (id) => document.getElementById(id);
   const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  const TOP_KEYS = ["b","c","d","g","i","l","m","u","v"];
+  const TOP_KEYS = ["a","b","c","d","g","i","l","m","u","v"];
   const ITEM_KEYS = ["n","q","t"];
 
   function b64urlDecode(s) {
@@ -282,7 +288,8 @@
     payload.i.some((it) => Object.keys(it).some((k) => !ITEM_KEYS.includes(k)));
   if (payload.v !== 1 || unknownTop || unknownItem ||
       typeof payload.b !== "string" || typeof payload.l !== "string" ||
-      typeof payload.d !== "string" || !Array.isArray(payload.i)) {
+      typeof payload.d !== "string" || !Array.isArray(payload.i) ||
+      ("a" in payload && typeof payload.a !== "string")) {
     fail(`${T.errVersion} ${code}`);
     return;
   }
@@ -297,6 +304,11 @@
   $("v-borrower").textContent = payload.b;
   $("v-lent").textContent = displayDate(payload.d, lang);
   $("v-code").textContent = code;
+  if (payload.a) {
+    // An addendum: more things under an earlier receipt, which stays as it was.
+    $("v-addendum").textContent = `${T.addendum} ${payload.a}`;
+    $("v-addendum").hidden = false;
+  }
 
   for (const item of payload.i) {
     const row = document.createElement("div");
