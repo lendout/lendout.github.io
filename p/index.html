@@ -147,6 +147,46 @@
     errBrowser: "This browser is too old to unpack the receipt. Try another one, or just reply in the thread.",
     pcs: "pcs"
   };
+  const DE = {
+    title: "Übergabebeleg",
+    lender: "Verliehen von", borrower: "Erhalten von", lent: "Verliehen am", due: "Zurück bis",
+    code: "Belegcode",
+    ack: "Erhalt bestätigen", nack: "Das stimmt nicht",
+    panelAck: "Sende die Bestätigung als Nachricht:",
+    panelNack: "Sende deinen Einwand als Nachricht:",
+    msgAck: "Ich bestätige den Erhalt", msgNack: "Das stimmt nicht",
+    sms: "Per SMS / iMessage senden", whatsapp: "Per WhatsApp senden", mail: "Per E-Mail senden",
+    copy: "Antwort kopieren", copied: "Kopiert — füge sie in den Chat ein, in dem der Link kam.",
+    hint: "Am besten antwortest du direkt im Chat, in dem der Link kam — dann bleibt die Nachricht bei euch beiden.",
+    footer: "Diese Seite sendet nichts. Der Inhalt steckt im Link selbst und bleibt zwischen euch.",
+    errBadLink: "Der Link ist unvollständig oder beschädigt. Bitte öffne ihn erneut aus der Nachricht.",
+    errVersion: "Dieser Beleg stammt aus einer neueren Version. Angezeigt werden kann nur sein Code:",
+    errBrowser: "Dieser Browser ist zu alt, um den Beleg zu entpacken. Versuch einen anderen oder antworte direkt im Chat.",
+    pcs: "Stk."
+  };
+  const FR = {
+    title: "Reçu de remise",
+    lender: "Prêté par", borrower: "Reçu par", lent: "Prêté le", due: "À rendre avant le",
+    code: "Code du reçu",
+    ack: "Confirmer la réception", nack: "Ce n'est pas ça",
+    panelAck: "Envoie la confirmation par message :",
+    panelNack: "Envoie ton objection par message :",
+    msgAck: "Je confirme la réception", msgNack: "Ce n'est pas ça",
+    sms: "Envoyer par SMS / iMessage", whatsapp: "Envoyer via WhatsApp", mail: "Envoyer par e-mail",
+    copy: "Copier la réponse", copied: "Copié — colle-la dans la conversation où le lien est arrivé.",
+    hint: "Le mieux est de répondre dans la conversation où le lien est arrivé — le message reste chez vous deux.",
+    footer: "Cette page n'envoie rien. Le contenu voyage dans le lien et reste entre vous.",
+    errBadLink: "Le lien est incomplet ou endommagé. Rouvre-le depuis le message.",
+    errVersion: "Ce reçu vient d'une version plus récente. Seul son code peut être affiché :",
+    errBrowser: "Ce navigateur est trop ancien pour ouvrir le reçu. Essaie-en un autre, ou réponds directement dans la conversation.",
+    pcs: "pc."
+  };
+  // Must match ReceiptMessage.supportedLanguages in the app.
+  const DICTS = { cs: CS, en: EN, de: DE, fr: FR };
+  // Before the payload is read, errors follow the browser language when known,
+  // otherwise they are shown in Czech and English.
+  const browserDict = DICTS[(navigator.language || "").slice(0, 2).toLowerCase()];
+  const preError = (key) => browserDict ? browserDict[key] : CS[key] + " / " + EN[key];
 
   const $ = (id) => document.getElementById(id);
   const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -178,10 +218,17 @@
     return s.slice(0, 4) + "-" + s.slice(4);
   }
 
-  function displayDate(iso) {
+  // Payload dates are plain calendar dates: format in UTC so they never shift.
+  function displayDate(iso, lang) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
     if (!m) return iso;
-    return `${+m[3]}. ${+m[2]}. ${+m[1]}`;
+    if (lang === "cs") return `${+m[3]}. ${+m[2]}. ${+m[1]}`;
+    const date = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    try {
+      return new Intl.DateTimeFormat(lang, { dateStyle: "medium", timeZone: "UTC" }).format(date);
+    } catch {
+      return iso;
+    }
   }
 
   function fail(msg) {
@@ -192,7 +239,7 @@
 
   const fragment = location.hash.slice(1);
   const dot = fragment.indexOf(".");
-  if (dot < 1) { fail(CS.errBadLink + " / " + EN.errBadLink); return; }
+  if (dot < 1) { fail(preError("errBadLink")); return; }
   const encVersion = fragment.slice(0, dot);
 
   let canonical;
@@ -202,14 +249,14 @@
       canonical = body;
     } else if (encVersion === "1") {
       if (!("DecompressionStream" in window)) {
-        fail(CS.errBrowser + " / " + EN.errBrowser); return;
+        fail(preError("errBrowser")); return;
       }
       canonical = await inflateRaw(body);
     } else {
-      fail(CS.errBadLink + " / " + EN.errBadLink); return;
+      fail(preError("errBadLink")); return;
     }
   } catch {
-    fail(CS.errBadLink + " / " + EN.errBadLink); return;
+    fail(preError("errBadLink")); return;
   }
 
   // The code commits to the exact bytes in the link — hash them as-is,
@@ -220,11 +267,13 @@
   try {
     payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(canonical));
   } catch {
-    fail(CS.errBadLink + " / " + EN.errBadLink); return;
+    fail(preError("errBadLink")); return;
   }
 
-  const T = payload.g === "en" ? EN : CS;
-  document.documentElement.lang = payload.g === "en" ? "en" : "cs";
+  const lang = Object.hasOwn(DICTS, payload.g) ? payload.g : "cs";
+  const T = DICTS[lang];
+  document.documentElement.lang = lang;
+  document.title = T.title;
 
   // Invariant: this page renders EVERY field the code hashes. A payload with
   // keys we don't know would render incompletely — show only the code instead.
@@ -246,7 +295,7 @@
   $("t-code").textContent = T.code;
   $("v-lender").textContent = payload.l;
   $("v-borrower").textContent = payload.b;
-  $("v-lent").textContent = displayDate(payload.d);
+  $("v-lent").textContent = displayDate(payload.d, lang);
   $("v-code").textContent = code;
 
   for (const item of payload.i) {
@@ -267,7 +316,7 @@
   }
   if (payload.u) {
     $("t-due").textContent = T.due;
-    $("v-due").textContent = displayDate(payload.u);
+    $("v-due").textContent = displayDate(payload.u, lang);
     $("t-due").hidden = $("v-due").hidden = false;
   }
   if (payload.m) {

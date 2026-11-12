@@ -39,12 +39,39 @@
     <p id="nofrag" hidden>V odkazu chybí kód. Otevři ho prosím znovu ze zprávy.</p>
   </div>
   <div class="card">
-    <p>Nemáš aplikaci? Nevadí — samotná zpráva s kódem je to, na čem záleží. Nech ji ve vlákně a je hotovo.</p>
+    <p id="noapp">Nemáš aplikaci? Nevadí — samotná zpráva s kódem je to, na čem záleží. Nech ji ve vlákně a je hotovo.</p>
   </div>
 </main>
 <script>
 "use strict";
 (function () {
+  // Whoever opens this page opens it on their own phone: follow its language.
+  const DICTS = {
+    cs: { page: "Odpověď na stvrzenku", ack: "Potvrzení převzetí", nack: "Nesouhlas se stvrzenkou",
+          explain: "Tahle stránka je jen pojistka. Když má půjčitel aplikaci, odkaz se otevře rovnou v ní a odpověď se odškrtne sama.",
+          open: "Otevřít v aplikaci", nofrag: "V odkazu chybí kód. Otevři ho prosím znovu ze zprávy.",
+          noapp: "Nemáš aplikaci? Nevadí — samotná zpráva s kódem je to, na čem záleží. Nech ji ve vlákně a je hotovo." },
+    en: { page: "Reply to a receipt", ack: "Pickup confirmed", nack: "Receipt disputed",
+          explain: "This page is only a fallback. If the lender has the app, the link opens straight in it and the reply is checked off by itself.",
+          open: "Open in the app", nofrag: "The code is missing from the link. Please reopen it from the message.",
+          noapp: "No app? No problem — the message with the code is what matters. Leave it in the thread and you're done." },
+    de: { page: "Antwort auf einen Beleg", ack: "Erhalt bestätigt", nack: "Beleg bestritten",
+          explain: "Diese Seite ist nur ein Ersatz. Hat der Verleiher die App, öffnet sich der Link direkt darin und die Antwort wird von selbst abgehakt.",
+          open: "In der App öffnen", nofrag: "Im Link fehlt der Code. Bitte öffne ihn erneut aus der Nachricht.",
+          noapp: "Keine App? Kein Problem — entscheidend ist die Nachricht mit dem Code. Lass sie im Chat, und fertig." },
+    fr: { page: "Réponse à un reçu", ack: "Réception confirmée", nack: "Reçu contesté",
+          explain: "Cette page n'est qu'un secours. Si le prêteur a l'application, le lien s'y ouvre directement et la réponse est cochée toute seule.",
+          open: "Ouvrir dans l'application", nofrag: "Le code manque dans le lien. Rouvre-le depuis le message.",
+          noapp: "Pas d'application ? Pas de souci — c'est le message avec le code qui compte. Laisse-le dans la conversation, c'est tout." }
+  };
+  const lang = (navigator.language || "").slice(0, 2).toLowerCase();
+  const T = DICTS[lang] || DICTS.cs;
+  document.documentElement.lang = DICTS[lang] ? lang : "cs";
+  document.title = T.page;
+  for (const id of ["explain", "open", "nofrag", "noapp"])
+    document.getElementById(id).textContent = T[id];
+  document.getElementById("title").textContent = T.page;
+
   const fragment = location.hash.slice(1);
   const m = /^([0-9A-Za-z-]{8,9})\.(ack|nack)(?:\.(\d+))?$/.exec(fragment);
   if (!m) {
@@ -56,7 +83,7 @@
   const dashed = raw.slice(0, 4) + "-" + raw.slice(4);
   document.getElementById("code").textContent = dashed;
   document.getElementById("title").textContent =
-    m[2] === "ack" ? "Potvrzení převzetí" : "Nesouhlas se stvrzenkou";
+    m[2] === "ack" ? T.ack : T.nack;
   const open = document.getElementById("open");
   open.href = "loantracking://reply#" + fragment;
   open.hidden = false;
