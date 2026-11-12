@@ -149,7 +149,7 @@
     errVersion: "This receipt is from a newer version. Only its code can be shown:",
     errBrowser: "This browser is too old to unpack the receipt. Try another one, or just reply in the thread.",
     addendum: "Addendum to receipt",
-    pcs: "pcs"
+    pcs: "pcs", pcsOne: "pc"
   };
   const DE = {
     title: "Übergabebeleg",
@@ -322,7 +322,7 @@
     }
     const qty = document.createElement("span");
     qty.className = "qty";
-    qty.textContent = `${item.q} ${T.pcs}`;
+    qty.textContent = `${item.q} ${item.q === 1 && T.pcsOne ? T.pcsOne : T.pcs}`;
     row.append(name, qty);
     $("v-items").appendChild(row);
   }
