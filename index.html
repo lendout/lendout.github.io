@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <meta name="color-scheme" content="light dark">
-<title>Lend Out</title>
+<title>Půjčeno · Lent Out</title>
 <style>
   :root { --paper:#f3f3f7; --ink:#1a1a24; --ink2:#55566a; --accent:#4b47a8; }
   @media (prefers-color-scheme: dark) {
@@ -18,15 +18,19 @@
   main { max-width:26rem; text-align:center; }
   h1 { font-size:1.6rem; letter-spacing:-0.02em; color:var(--accent); margin-bottom:10px; }
   p { color:var(--ink2); font-size:0.95rem; }
+  p + p { margin-top:10px; }
+  .links { margin-top:24px; }
+  a { color:var(--accent); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Lend Out</h1>
+  <h1>Půjčeno · Lent Out</h1>
   <p>Stvrzenky k půjčeným věcem. Stránka jen zobrazuje odeslané stvrzenky — nic tu není uloženo a nic se nikam neposílá.</p>
   <p lang="en">Receipts for lent items. This page only renders sent receipts — nothing is stored here and nothing is sent anywhere.</p>
   <p lang="de">Belege für verliehene Sachen. Diese Seite zeigt nur gesendete Belege an — hier wird nichts gespeichert und nichts verschickt.</p>
   <p lang="fr">Des reçus pour les objets prêtés. Cette page affiche seulement les reçus envoyés — rien n'est stocké ici et rien n'est envoyé nulle part.</p>
+  <p class="links"><a href="support/">Podpora / Support</a> · <a href="privacy/">Soukromí / Privacy</a></p>
 </main>
 </body>
 </html>
